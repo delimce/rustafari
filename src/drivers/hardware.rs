@@ -1,5 +1,7 @@
 extern crate dmidecode;
 extern crate sys_info;
+extern crate mac_address; 
+use local_ip_address::local_ip;
 
  trait HardwareInfo {
     fn get_os_type(&self) -> String;
@@ -7,6 +9,8 @@ extern crate sys_info;
     fn get_os_version(&self) -> String;
     fn get_os_name(&self) -> String;
     fn get_host_name(&self) -> String;
+    fn get_mac_address(&self) -> String;
+    fn get_ip_address(&self) -> String;
 }
 
 trait HardwareChange {
@@ -41,6 +45,20 @@ impl HardwareInfo for Hardware {
 
     fn get_host_name(&self) -> String {
         sys_info::hostname().unwrap()
+    }
+
+    fn get_mac_address(&self) -> String {
+        let interfaces = mac_address::get_mac_address().unwrap();
+        let mut mac_address = String::new();
+        for interface in interfaces.iter() {
+            mac_address.push_str(&interface.to_string());
+        }
+        mac_address
+    }
+
+    fn get_ip_address(&self) -> String {
+        let my_local_ip = local_ip();
+        my_local_ip.unwrap().to_string()
     }
 
 }
@@ -85,6 +103,15 @@ pub fn get_host_name() -> String {
     Hardware.get_host_name()
 }
 
+pub fn get_mac_address() -> String {
+    Hardware.get_mac_address()
+}
+
+pub fn get_ip_address() -> String {
+    Hardware.get_ip_address()
+}
+
+// HardwareChange
 pub fn get_mem_free() -> u64 {
     Hardware.get_mem_info().1
 }

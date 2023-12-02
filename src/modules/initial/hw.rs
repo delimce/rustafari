@@ -13,6 +13,9 @@ pub fn show_hdw_info() {
     println!("Total RAM: {}", formats::kb_to_gb( hardware::get_mem_total()));
     println!("Total disc size: {} ",formats::kb_to_gb(hardware::get_disk_size()));
     println!("Hostname: {}", hardware::get_host_name());
+}
 
-
+pub fn show_network_info() {
+    println!("MAC address: {}", hardware::get_mac_address());
+    println!("IP address: {}", hardware::get_ip_address());
 }
