@@ -1,9 +1,8 @@
-extern crate dmidecode;
+extern crate mac_address;
 extern crate sys_info;
-extern crate mac_address; 
 use local_ip_address::local_ip;
 
- trait HardwareInfo {
+trait HardwareInfo {
     fn get_os_type(&self) -> String;
     fn get_cpu_num(&self) -> u32;
     fn get_os_version(&self) -> String;
@@ -18,13 +17,9 @@ trait HardwareChange {
     fn get_disk_info(&self) -> (u64, u64);
 }
 
-
-
 pub struct Hardware;
 
 impl HardwareInfo for Hardware {
-
-
     fn get_os_type(&self) -> String {
         sys_info::os_type().unwrap()
     }
@@ -40,7 +35,6 @@ impl HardwareInfo for Hardware {
     fn get_os_name(&self) -> String {
         let so_attributes = sys_info::linux_os_release().unwrap();
         so_attributes.pretty_name.unwrap()
-
     }
 
     fn get_host_name(&self) -> String {
@@ -60,7 +54,6 @@ impl HardwareInfo for Hardware {
         let my_local_ip = local_ip();
         my_local_ip.unwrap().to_string()
     }
-
 }
 
 impl HardwareChange for Hardware {
@@ -119,4 +112,3 @@ pub fn get_mem_free() -> u64 {
 pub fn get_disk_free() -> u64 {
     Hardware.get_disk_info().1
 }
-
