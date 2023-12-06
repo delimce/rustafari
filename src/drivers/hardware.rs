@@ -1,6 +1,7 @@
 extern crate mac_address;
 extern crate sys_info;
 use local_ip_address::local_ip;
+use os_info;
 
 trait HardwareInfo {
     fn get_os_type(&self) -> String;
@@ -21,7 +22,8 @@ pub struct Hardware;
 
 impl HardwareInfo for Hardware {
     fn get_os_type(&self) -> String {
-        sys_info::os_type().unwrap()
+        let info = os_info::get();
+        info.os_type().to_string()
     }
 
     fn get_cpu_num(&self) -> u32 {
@@ -33,8 +35,13 @@ impl HardwareInfo for Hardware {
     }
 
     fn get_os_name(&self) -> String {
-        let so_attributes = sys_info::linux_os_release().unwrap();
-        so_attributes.pretty_name.unwrap()
+        match sys_info::linux_os_release() {
+            Ok(value) => return value.pretty_name.unwrap(),
+            Err(e) => {
+                let info = os_info::get();
+                return info.version().to_string();
+            }
+        };
     }
 
     fn get_host_name(&self) -> String {
