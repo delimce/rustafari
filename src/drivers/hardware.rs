@@ -2,6 +2,7 @@ extern crate mac_address;
 extern crate sys_info;
 use local_ip_address::local_ip;
 use os_info;
+use sysinfo::{DiskExt, System, SystemExt};
 
 trait HardwareInfo {
     fn get_os_type(&self) -> String;
@@ -70,8 +71,10 @@ impl HardwareChange for Hardware {
     }
 
     fn get_disk_info(&self) -> (u64, u64) {
-        let disk = sys_info::disk_info().unwrap();
-        (disk.total, disk.free)
+        let mut system = System::new_all();
+        system.refresh_all();
+        let disk = system.disks();
+        (disk[0].total_space(), disk[0].available_space())
     }
 }
 
