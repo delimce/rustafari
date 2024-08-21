@@ -1,7 +1,9 @@
 extern crate mac_address;
 extern crate sys_info;
+
 use local_ip_address::local_ip;
 use os_info;
+use sysinfo::{DiskExt, System, SystemExt};
 
 trait HardwareInfo {
     fn get_os_type(&self) -> String;
@@ -10,7 +12,8 @@ trait HardwareInfo {
     fn get_os_name(&self) -> String;
     fn get_host_name(&self) -> String;
     fn get_mac_address(&self) -> String;
-    fn get_ip_address(&self) -> String;
+    fn get_local_ip_address(&self) -> String;
+    fn get_external_ip_address(&self) -> String;
 }
 
 trait HardwareChange {
@@ -57,9 +60,13 @@ impl HardwareInfo for Hardware {
         mac_address
     }
 
-    fn get_ip_address(&self) -> String {
+    fn get_local_ip_address(&self) -> String {
         let my_local_ip = local_ip();
         my_local_ip.unwrap().to_string()
+    }
+
+    fn get_external_ip_address(&self) -> String {
+        "Not implemented".to_string()
     }
 }
 
@@ -70,8 +77,10 @@ impl HardwareChange for Hardware {
     }
 
     fn get_disk_info(&self) -> (u64, u64) {
-        let disk = sys_info::disk_info().unwrap();
-        (disk.total, disk.free)
+        let mut system = System::new_all();
+        system.refresh_all();
+        let disk = system.disks();
+        (disk[0].total_space(), disk[0].available_space())
     }
 }
 
@@ -107,8 +116,19 @@ pub fn get_mac_address() -> String {
     Hardware.get_mac_address()
 }
 
-pub fn get_ip_address() -> String {
-    Hardware.get_ip_address()
+pub fn get_local_ip_address() -> String {
+    Hardware.get_local_ip_address()
+}
+
+pub fn get_external_ip_address() -> String {
+    get_external_ip_address_async()
+}
+
+fn get_external_ip_address_async() -> String {
+    let http_client = reqwest::blocking::Client::new();
+    let url = "https://api.ipify.org";
+    let text = http_client.get(url).send().unwrap().text();
+    text.unwrap()
 }
 
 // HardwareChange
