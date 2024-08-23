@@ -5,10 +5,8 @@ mod hardware;
 mod formats;
 
 pub fn show_hdw_info() {
-    println!("OS Type: {}", hardware::get_os_type());
-    println!("OS name: {}", hardware::get_os_name());
-    println!("Kernel: {}", hardware::get_os_version());
-    println!("CPU Num: {}", hardware::get_cpu_num());
+    println!("CPU Model: {}", hardware::get_cpu_model());
+    println!("CPU Cores: {}", hardware::get_cpu_num());
     println!(
         "Total RAM: {}",
         formats::kb_to_gb(hardware::get_mem_total())
@@ -29,5 +27,8 @@ pub fn show_hdw_info() {
 pub fn show_network_info() {
     println!("MAC address: {}", hardware::get_mac_address());
     println!("Local IP address: {}", hardware::get_local_ip_address());
-    println!("External IP address: {}", hardware::get_external_ip_address());
+    println!(
+        "External IP address: {}",
+        hardware::get_external_ip_address()
+    );
 }
