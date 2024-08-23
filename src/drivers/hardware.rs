@@ -2,9 +2,10 @@ extern crate mac_address;
 extern crate sys_info;
 
 use local_ip_address::local_ip;
-use sysinfo::{DiskExt, System, SystemExt};
+use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 trait HardwareInfo {
+    fn get_cpu_name(&self) -> String;
     fn get_cpu_num(&self) -> u32;
     fn get_host_name(&self) -> String;
     fn get_mac_address(&self) -> String;
@@ -20,6 +21,13 @@ trait HardwareChange {
 pub struct Hardware;
 
 impl HardwareInfo for Hardware {
+    fn get_cpu_name(&self) -> String {
+        let s =
+            System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
+        let cpu_name = s.cpus()[0].brand();
+        cpu_name.to_string()
+    }
+
     fn get_cpu_num(&self) -> u32 {
         sys_info::cpu_num().unwrap()
     }
@@ -59,6 +67,10 @@ impl HardwareChange for Hardware {
         let disk = system.disks();
         (disk[0].total_space(), disk[0].available_space())
     }
+}
+
+pub fn get_cpu_model() -> String {
+    Hardware.get_cpu_name()
 }
 
 pub fn get_cpu_num() -> u32 {

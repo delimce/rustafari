@@ -5,7 +5,8 @@ mod hardware;
 mod formats;
 
 pub fn show_hdw_info() {
-    println!("CPU Num: {}", hardware::get_cpu_num());
+    println!("CPU Model: {}", hardware::get_cpu_model());
+    println!("CPU Cores: {}", hardware::get_cpu_num());
     println!(
         "Total RAM: {}",
         formats::kb_to_gb(hardware::get_mem_total())
