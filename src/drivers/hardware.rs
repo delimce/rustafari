@@ -2,14 +2,10 @@ extern crate mac_address;
 extern crate sys_info;
 
 use local_ip_address::local_ip;
-use os_info;
 use sysinfo::{DiskExt, System, SystemExt};
 
 trait HardwareInfo {
-    fn get_os_type(&self) -> String;
     fn get_cpu_num(&self) -> u32;
-    fn get_os_version(&self) -> String;
-    fn get_os_name(&self) -> String;
     fn get_host_name(&self) -> String;
     fn get_mac_address(&self) -> String;
     fn get_local_ip_address(&self) -> String;
@@ -24,27 +20,8 @@ trait HardwareChange {
 pub struct Hardware;
 
 impl HardwareInfo for Hardware {
-    fn get_os_type(&self) -> String {
-        let info = os_info::get();
-        info.os_type().to_string()
-    }
-
     fn get_cpu_num(&self) -> u32 {
         sys_info::cpu_num().unwrap()
-    }
-
-    fn get_os_version(&self) -> String {
-        sys_info::os_release().unwrap()
-    }
-
-    fn get_os_name(&self) -> String {
-        match sys_info::linux_os_release() {
-            Ok(value) => return value.pretty_name.unwrap(),
-            Err(e) => {
-                let info = os_info::get();
-                return info.version().to_string();
-            }
-        };
     }
 
     fn get_host_name(&self) -> String {
@@ -84,10 +61,6 @@ impl HardwareChange for Hardware {
     }
 }
 
-pub fn get_os_type() -> String {
-    Hardware.get_os_type()
-}
-
 pub fn get_cpu_num() -> u32 {
     Hardware.get_cpu_num()
 }
@@ -98,14 +71,6 @@ pub fn get_mem_total() -> u64 {
 
 pub fn get_disk_size() -> u64 {
     Hardware.get_disk_info().0
-}
-
-pub fn get_os_version() -> String {
-    Hardware.get_os_version()
-}
-
-pub fn get_os_name() -> String {
-    Hardware.get_os_name()
 }
 
 pub fn get_host_name() -> String {
