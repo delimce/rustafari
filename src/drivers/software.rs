@@ -4,6 +4,7 @@ trait SoftwareInfo {
     fn get_os_type(&self) -> String;
     fn get_os_version(&self) -> String;
     fn get_os_name(&self) -> String;
+    fn get_so_architecture(&self) -> String;
 }
 
 pub struct Software;
@@ -27,6 +28,11 @@ impl SoftwareInfo for Software {
             }
         };
     }
+
+    fn get_so_architecture(&self) -> String {
+        let info = os_info::get();
+        info.architecture().unwrap().to_string()
+    }
 }
 
 pub fn get_os_name() -> String {
@@ -39,4 +45,8 @@ pub fn get_os_version() -> String {
 
 pub fn get_os_type() -> String {
     Software.get_os_type()
+}
+
+pub fn get_so_architecture() -> String {
+    Software.get_so_architecture()
 }
