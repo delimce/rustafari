@@ -57,7 +57,10 @@ impl HardwareInfo for Hardware {
 
     fn get_device_serial(&self) -> String {
         let serials = mid::data("mySecretKey").unwrap();
-        serials.result.get(1).unwrap().to_uppercase()
+        // if index 1 not found, return N/A
+        let binding = "N/A".to_string();
+        let serial_data = serials.result.get(1).unwrap_or(&binding);
+        serial_data.to_string()
     }
 }
 
