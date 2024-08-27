@@ -31,4 +31,5 @@ pub fn show_network_info() {
         "External IP address: {}",
         hardware::get_external_ip_address()
     );
+    print!("Device serial number: {}", hardware::get_device_serial());
 }

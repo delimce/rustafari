@@ -11,6 +11,7 @@ trait HardwareInfo {
     fn get_mac_address(&self) -> String;
     fn get_local_ip_address(&self) -> String;
     fn get_external_ip_address(&self) -> String;
+    fn get_device_serial(&self) -> String;
 }
 
 trait HardwareChange {
@@ -52,6 +53,11 @@ impl HardwareInfo for Hardware {
 
     fn get_external_ip_address(&self) -> String {
         "Not implemented".to_string()
+    }
+
+    fn get_device_serial(&self) -> String {
+        let serials = mid::data("mySecretKey").unwrap();
+        serials.result.get(1).unwrap().to_uppercase()
     }
 }
 
@@ -115,4 +121,8 @@ pub fn get_mem_free() -> u64 {
 
 pub fn get_disk_free() -> u64 {
     Hardware.get_disk_info().1
+}
+
+pub fn get_device_serial() -> String {
+    Hardware.get_device_serial()
 }
