@@ -4,6 +4,8 @@ extern crate sys_info;
 use local_ip_address::local_ip;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
+const UNKNOWN_VALUE: &str = "Unknown";
+
 trait HardwareInfo {
     fn get_cpu_name(&self) -> String;
     fn get_cpu_num(&self) -> u32;
@@ -57,8 +59,7 @@ impl HardwareInfo for Hardware {
 
     fn get_device_serial(&self) -> String {
         let serials = mid::data("mySecretKey").unwrap();
-        // if index 1 not found, return N/A
-        let binding = "N/A".to_string();
+        let binding: String = UNKNOWN_VALUE.to_string();
         let serial_data = serials.result.get(1).unwrap_or(&binding);
         serial_data.to_string()
     }
