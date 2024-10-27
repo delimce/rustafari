@@ -7,6 +7,14 @@ mod formats;
 pub fn show_hdw_info() {
     println!("CPU Model: {}", hardware::get_cpu_model());
     println!("CPU Cores: {}", hardware::get_cpu_num());
+
+    let (l1, l2, l3) = hardware::get_cpu_cache();
+    println!(
+        "CPU Cache: L1:{}, L2:{}, L3:{}",
+        formats::bytes_to_mb(l1),
+        formats::bytes_to_mb(l2),
+        formats::bytes_to_mb(l3)
+    );
     println!(
         "Total RAM: {}",
         formats::kb_to_gb(hardware::get_mem_total())
@@ -31,5 +39,5 @@ pub fn show_network_info() {
         "External IP address: {}",
         hardware::get_external_ip_address()
     );
-    print!("Device serial number: {}", hardware::get_device_serial());
+    println!("Device serial number: {}", hardware::get_device_serial());
 }

@@ -1,3 +1,4 @@
+extern crate cache_size;
 extern crate mac_address;
 extern crate sys_info;
 
@@ -11,6 +12,7 @@ trait HardwareInfo {
     fn get_cpu_num(&self) -> u32;
     fn get_host_name(&self) -> String;
     fn get_mac_address(&self) -> String;
+    fn get_cpu_cache_total(&self) -> (u64, u64, u64);
     fn get_local_ip_address(&self) -> String;
     fn get_external_ip_address(&self) -> String;
     fn get_device_serial(&self) -> String;
@@ -46,6 +48,18 @@ impl HardwareInfo for Hardware {
             mac_address.push_str(&interface.to_string());
         }
         mac_address
+    }
+
+    fn get_cpu_cache_total(&self) -> (u64, u64, u64) {
+        let cache1 = cache_size::l1_cache_size();
+        let cache2 = cache_size::l2_cache_size();
+        let cache3 = cache_size::l3_cache_size();
+        //return only if this values are numbers
+        (
+            cache1.unwrap_or(0) as u64,
+            cache2.unwrap_or(0) as u64,
+            cache3.unwrap_or(0) as u64,
+        )
     }
 
     fn get_local_ip_address(&self) -> String {
@@ -89,6 +103,10 @@ pub fn get_cpu_num() -> u32 {
 
 pub fn get_mem_total() -> u64 {
     Hardware.get_mem_info().0
+}
+
+pub fn get_cpu_cache() -> (u64, u64, u64) {
+    Hardware.get_cpu_cache_total()
 }
 
 pub fn get_disk_size() -> u64 {

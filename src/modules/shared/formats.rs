@@ -13,3 +13,7 @@ pub fn kb_to_gb(kb: u64) -> String {
 pub fn bytes_to_gb(bytes: u64) -> String {
     format!("{} GB", from_bytes_to_gb(bytes))
 }
+
+pub fn bytes_to_mb(bytes: u64) -> String {
+    format!("{} MB", (bytes + 1024 * 1024 - 1) / (1024 * 1024))
+}
