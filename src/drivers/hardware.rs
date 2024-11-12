@@ -14,7 +14,6 @@ trait HardwareInfo {
     fn get_mac_address(&self) -> String;
     fn get_cpu_cache_total(&self) -> (u64, u64, u64);
     fn get_local_ip_address(&self) -> String;
-    fn get_external_ip_address(&self) -> String;
     fn get_device_serial(&self) -> String;
 }
 
@@ -65,10 +64,6 @@ impl HardwareInfo for Hardware {
     fn get_local_ip_address(&self) -> String {
         let my_local_ip = local_ip();
         my_local_ip.unwrap().to_string()
-    }
-
-    fn get_external_ip_address(&self) -> String {
-        "Not implemented".to_string()
     }
 
     fn get_device_serial(&self) -> String {
@@ -136,8 +131,7 @@ fn get_external_ip_address_async() -> String {
     text.unwrap()
 }
 
-// HardwareChange
-pub fn get_mem_free() -> u64 {
+pub fn _get_mem_free() -> u64 {
     Hardware.get_mem_info().1
 }
 

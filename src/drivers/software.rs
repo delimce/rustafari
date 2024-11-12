@@ -20,13 +20,11 @@ impl SoftwareInfo for Software {
     }
 
     fn get_os_name(&self) -> String {
-        match sys_info::linux_os_release() {
-            Ok(value) => return value.pretty_name.unwrap(),
-            Err(e) => {
-                let info = os_info::get();
-                return info.version().to_string();
-            }
+        let result: String = match sys_info::linux_os_release() {
+            Ok(value) => value.pretty_name.unwrap(),
+            Err(_e) => os_info::get().to_string(),
         };
+        result
     }
 
     fn get_so_architecture(&self) -> String {
