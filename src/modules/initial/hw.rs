@@ -30,6 +30,14 @@ pub fn show_hdw_info() {
     );
 
     println!("Hostname: {}", hardware::get_host_name());
+
+    let battery_info = hardware::get_battery_info();
+
+    let battery_percentage = formats::ratio_to_float(battery_info.0);
+    println!(
+        "Battery life: {}",
+        formats::float_to_percent(battery_percentage)
+    );
 }
 
 pub fn show_network_info() {

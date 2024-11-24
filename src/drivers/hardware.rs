@@ -1,7 +1,9 @@
+extern crate battery;
 extern crate cache_size;
 extern crate mac_address;
 extern crate sys_info;
 
+use battery::units::{energy::watt_hour, ratio::percent, Energy, Ratio};
 use local_ip_address::local_ip;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
@@ -20,6 +22,7 @@ trait HardwareInfo {
 trait HardwareChange {
     fn get_mem_info(&self) -> (u64, u64);
     fn get_disk_info(&self) -> (u64, u64);
+    fn get_battery_info(&self) -> (Ratio, Energy);
 }
 
 pub struct Hardware;
@@ -86,6 +89,18 @@ impl HardwareChange for Hardware {
         let disk = system.disks();
         (disk[0].total_space(), disk[0].available_space())
     }
+
+    fn get_battery_info(&self) -> (Ratio, Energy) {
+        let manager = battery::Manager::new().unwrap();
+        let batteries = manager.batteries().unwrap();
+        let mut battery_info = (Ratio::new::<percent>(0.0), Energy::new::<watt_hour>(0.0));
+        for battery in batteries {
+            if let Ok(battery) = battery {
+                battery_info = (battery.state_of_health(), battery.energy_full());
+            }
+        }
+        battery_info
+    }
 }
 
 pub fn get_cpu_model() -> String {
@@ -141,4 +156,8 @@ pub fn get_disk_free() -> u64 {
 
 pub fn get_device_serial() -> String {
     Hardware.get_device_serial()
+}
+
+pub fn get_battery_info() -> (Ratio, Energy) {
+    Hardware.get_battery_info()
 }
