@@ -1,7 +1,3 @@
-mod drivers {
-    pub mod hardware;
-}
-
 mod modules {
     pub mod initial;
 }

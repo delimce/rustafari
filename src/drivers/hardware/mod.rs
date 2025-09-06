@@ -6,6 +6,7 @@
 
 #![allow(dead_code)]
 
+pub mod base;
 pub mod traits;
 
 #[cfg(target_os = "macos")]
