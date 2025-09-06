@@ -169,6 +169,8 @@ impl Hardware {
     #[cfg(target_os = "macos")]
     fn get_manufactured_date_macos() -> Option<String> {
         // Try to get system info from system_profiler for Serial Number which sometimes contains date info
+
+        use std::process::Command;
         if let Ok(output) = Command::new("system_profiler")
             .args(&["SPHardwareDataType"])
             .output()
@@ -238,6 +240,8 @@ impl Hardware {
     #[cfg(target_os = "macos")]
     fn get_system_product_name_macos() -> Option<String> {
         // Try to get model from system_profiler
+
+        use std::process::Command;
         if let Ok(output) = Command::new("system_profiler")
             .args(&["SPHardwareDataType"])
             .output()
