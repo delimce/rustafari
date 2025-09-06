@@ -3,7 +3,6 @@ use battery::{
     Manager,
 };
 use local_ip_address::local_ip;
-use std::process::Command;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 const UNKNOWN_VALUE: &str = "Unknown";
