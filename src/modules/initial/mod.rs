@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 pub mod draw;
 pub mod hw;
 pub mod loader;
