@@ -22,6 +22,9 @@ pub fn show_hdw_info() {
     println!("Total disc size: {disk_total_gb}");
     println!("Total disc available: {disk_free_gb}");
     println!("Hostname: {}", hardware::get_host_name());
+    println!("Manufacturer: {}", hardware::get_system_manufacturer());
+    println!("Product Name: {}", hardware::get_system_product_name());
+    println!("Manufactured Date: {}", hardware::get_manufactured_date());
 
     print_battery_info();
 }

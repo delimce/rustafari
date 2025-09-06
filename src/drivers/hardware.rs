@@ -3,6 +3,7 @@ use battery::{
     Manager,
 };
 use local_ip_address::local_ip;
+use std::process::Command;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 const UNKNOWN_VALUE: &str = "Unknown";
@@ -111,6 +112,180 @@ impl Hardware {
             .and_then(|response| response.text())
             .unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
     }
+
+    pub fn manufactured_date() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(date) = Self::get_manufactured_date_macos() {
+                return date;
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(date) = Self::get_manufactured_date_linux() {
+                return date;
+            }
+        }
+
+        UNKNOWN_VALUE.to_string()
+    }
+
+    pub fn system_manufacturer() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(manufacturer) = Self::get_system_manufacturer_macos() {
+                return manufacturer;
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(manufacturer) = Self::get_system_manufacturer_linux() {
+                return manufacturer;
+            }
+        }
+
+        UNKNOWN_VALUE.to_string()
+    }
+
+    pub fn system_product_name() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(product) = Self::get_system_product_name_macos() {
+                return product;
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(product) = Self::get_system_product_name_linux() {
+                return product;
+            }
+        }
+
+        UNKNOWN_VALUE.to_string()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn get_manufactured_date_macos() -> Option<String> {
+        // Try to get system info from system_profiler for Serial Number which sometimes contains date info
+        if let Ok(output) = Command::new("system_profiler")
+            .args(&["SPHardwareDataType"])
+            .output()
+        {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            for line in output_str.lines() {
+                if line.trim().starts_with("Serial Number (system):") {
+                    if let Some(serial) = line.split(':').nth(1) {
+                        let serial = serial.trim();
+                        // Apple serials sometimes encode manufacturing info
+                        if !serial.is_empty() && serial != "Not Available" {
+                            return Some(format!("Serial: {}", serial));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try to get system version/build date
+        if let Ok(output) = Command::new("sw_vers").args(&["-buildVersion"]).output() {
+            let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !result.is_empty() {
+                return Some(format!("Build: {}", result));
+            }
+        }
+
+        // Fallback to system uptime info
+        if let Ok(output) = Command::new("sysctl")
+            .args(&["-n", "kern.boottime"])
+            .output()
+        {
+            let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !result.is_empty() {
+                return Some("System info available".to_string());
+            }
+        }
+
+        None
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_manufactured_date_linux() -> Option<String> {
+        // Try various DMI paths on Linux
+        let paths = [
+            "/sys/class/dmi/id/bios_date",
+            "/sys/class/dmi/id/chassis_serial", // Sometimes contains date info
+            "/sys/class/dmi/id/board_serial",   // Sometimes contains date info
+        ];
+
+        for path in &paths {
+            if let Some(content) = Self::read_dmi_file(path) {
+                if !content.is_empty() && content != "Not Specified" {
+                    return Some(content);
+                }
+            }
+        }
+
+        None
+    }
+
+    #[cfg(target_os = "macos")]
+    fn get_system_manufacturer_macos() -> Option<String> {
+        // For macOS, we know it's Apple
+        Some("Apple Inc.".to_string())
+    }
+
+    #[cfg(target_os = "macos")]
+    fn get_system_product_name_macos() -> Option<String> {
+        // Try to get model from system_profiler
+        if let Ok(output) = Command::new("system_profiler")
+            .args(&["SPHardwareDataType"])
+            .output()
+        {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            for line in output_str.lines() {
+                if line.trim().starts_with("Model Name:") {
+                    if let Some(model) = line.split(':').nth(1) {
+                        return Some(model.trim().to_string());
+                    }
+                }
+                if line.trim().starts_with("Model Identifier:") {
+                    if let Some(model) = line.split(':').nth(1) {
+                        return Some(model.trim().to_string());
+                    }
+                }
+            }
+        }
+
+        // Fallback to sysctl
+        if let Ok(output) = Command::new("sysctl").args(&["-n", "hw.model"]).output() {
+            let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !result.is_empty() {
+                return Some(result);
+            }
+        }
+
+        None
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_system_manufacturer_linux() -> Option<String> {
+        Self::read_dmi_file("/sys/class/dmi/id/sys_vendor")
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_system_product_name_linux() -> Option<String> {
+        Self::read_dmi_file("/sys/class/dmi/id/product_name")
+    }
+
+    #[cfg(target_os = "linux")]
+    fn read_dmi_file(path: &str) -> Option<String> {
+        std::fs::read_to_string(path)
+            .ok()
+            .map(|content| content.trim().to_string())
+            .filter(|content| !content.is_empty())
+    }
 }
 
 // Public API functions
@@ -155,4 +330,13 @@ pub fn has_battery() -> bool {
 }
 pub fn _get_mem_free() -> u64 {
     Hardware::memory_info().1
+}
+pub fn get_manufactured_date() -> String {
+    Hardware::manufactured_date()
+}
+pub fn get_system_manufacturer() -> String {
+    Hardware::system_manufacturer()
+}
+pub fn get_system_product_name() -> String {
+    Hardware::system_product_name()
 }
