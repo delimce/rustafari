@@ -1,163 +1,158 @@
-extern crate battery;
-extern crate cache_size;
-extern crate mac_address;
-extern crate sys_info;
-
-use battery::units::{energy::watt_hour, ratio::percent, Energy, Ratio};
+use battery::{
+    units::{energy::watt_hour, ratio::percent, Energy, Ratio},
+    Manager,
+};
 use local_ip_address::local_ip;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 const UNKNOWN_VALUE: &str = "Unknown";
 
-trait HardwareInfo {
-    fn get_cpu_name(&self) -> String;
-    fn get_cpu_num(&self) -> u32;
-    fn get_host_name(&self) -> String;
-    fn get_mac_address(&self) -> String;
-    fn get_cpu_cache_total(&self) -> (u64, u64, u64);
-    fn get_local_ip_address(&self) -> String;
-    fn get_device_serial(&self) -> String;
-}
-
-trait HardwareChange {
-    fn get_mem_info(&self) -> (u64, u64);
-    fn get_disk_info(&self) -> (u64, u64);
-    fn get_battery_info(&self) -> (Ratio, Energy);
-}
-
 pub struct Hardware;
 
-impl HardwareInfo for Hardware {
-    fn get_cpu_name(&self) -> String {
-        let s =
-            System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
-        let cpu_name = s.cpus()[0].brand();
-        cpu_name.to_string()
+impl Hardware {
+    fn system() -> System {
+        System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()))
     }
 
-    fn get_cpu_num(&self) -> u32 {
-        sys_info::cpu_num().unwrap()
+    fn battery_manager() -> Result<Manager, battery::Error> {
+        Manager::new()
     }
 
-    fn get_host_name(&self) -> String {
-        sys_info::hostname().unwrap()
+    pub fn cpu_model() -> String {
+        Self::system().cpus()[0].brand().to_string()
     }
 
-    fn get_mac_address(&self) -> String {
-        let interfaces = mac_address::get_mac_address().unwrap();
-        let mut mac_address = String::new();
-        for interface in interfaces.iter() {
-            mac_address.push_str(&interface.to_string());
-        }
-        mac_address
+    pub fn cpu_cores() -> u32 {
+        sys_info::cpu_num().unwrap_or(0)
     }
 
-    fn get_cpu_cache_total(&self) -> (u64, u64, u64) {
-        let cache1 = cache_size::l1_cache_size();
-        let cache2 = cache_size::l2_cache_size();
-        let cache3 = cache_size::l3_cache_size();
-        //return only if this values are numbers
+    pub fn hostname() -> String {
+        sys_info::hostname().unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
+    }
+
+    pub fn mac_address() -> String {
+        mac_address::get_mac_address()
+            .ok()
+            .flatten()
+            .map(|addr| addr.to_string())
+            .unwrap_or_else(|| UNKNOWN_VALUE.to_string())
+    }
+
+    pub fn cpu_cache() -> (u64, u64, u64) {
         (
-            cache1.unwrap_or(0) as u64,
-            cache2.unwrap_or(0) as u64,
-            cache3.unwrap_or(0) as u64,
+            cache_size::l1_cache_size().unwrap_or(0) as u64,
+            cache_size::l2_cache_size().unwrap_or(0) as u64,
+            cache_size::l3_cache_size().unwrap_or(0) as u64,
         )
     }
 
-    fn get_local_ip_address(&self) -> String {
-        let my_local_ip = local_ip();
-        my_local_ip.unwrap().to_string()
+    pub fn local_ip() -> String {
+        local_ip()
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
     }
 
-    fn get_device_serial(&self) -> String {
-        let serials = mid::data("mySecretKey").unwrap();
-        let binding: String = UNKNOWN_VALUE.to_string();
-        let serial_data = serials.result.get(1).unwrap_or(&binding);
-        serial_data.to_string()
-    }
-}
-
-impl HardwareChange for Hardware {
-    fn get_mem_info(&self) -> (u64, u64) {
-        let mem = sys_info::mem_info().unwrap();
-        (mem.total, mem.free)
+    pub fn device_serial() -> String {
+        match mid::data("mySecretKey") {
+            Ok(serials) => serials
+                .result
+                .get(1)
+                .cloned()
+                .unwrap_or_else(|| UNKNOWN_VALUE.to_string()),
+            Err(_) => UNKNOWN_VALUE.to_string(),
+        }
     }
 
-    fn get_disk_info(&self) -> (u64, u64) {
+    pub fn has_battery() -> bool {
+        Self::battery_manager()
+            .map(|manager| {
+                manager
+                    .batteries()
+                    .map(|mut batteries| batteries.any(|b| b.is_ok()))
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn memory_info() -> (u64, u64) {
+        sys_info::mem_info()
+            .map(|mem| (mem.total, mem.free))
+            .unwrap_or((0, 0))
+    }
+
+    pub fn disk_info() -> (u64, u64) {
         let mut system = System::new_all();
         system.refresh_all();
-        let disk = system.disks();
-        (disk[0].total_space(), disk[0].available_space())
+
+        system
+            .disks()
+            .first()
+            .map(|disk| (disk.total_space(), disk.available_space()))
+            .unwrap_or((0, 0))
     }
 
-    fn get_battery_info(&self) -> (Ratio, Energy) {
-        let manager = battery::Manager::new().unwrap();
-        let batteries = manager.batteries().unwrap();
-        let mut battery_info = (Ratio::new::<percent>(0.0), Energy::new::<watt_hour>(0.0));
-        for battery in batteries {
-            if let Ok(battery) = battery {
-                battery_info = (battery.state_of_health(), battery.energy_full());
+    pub fn battery_info() -> (Ratio, Energy) {
+        if let Ok(manager) = Self::battery_manager() {
+            if let Ok(batteries) = manager.batteries() {
+                for battery in batteries {
+                    if let Ok(battery) = battery {
+                        return (battery.state_of_health(), battery.energy_full());
+                    }
+                }
             }
         }
-        battery_info
+        (Ratio::new::<percent>(0.0), Energy::new::<watt_hour>(0.0))
+    }
+
+    pub fn external_ip() -> String {
+        reqwest::blocking::Client::new()
+            .get("https://api.ipify.org")
+            .send()
+            .and_then(|response| response.text())
+            .unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
     }
 }
 
+// Public API functions
 pub fn get_cpu_model() -> String {
-    Hardware.get_cpu_name()
+    Hardware::cpu_model()
 }
-
 pub fn get_cpu_num() -> u32 {
-    Hardware.get_cpu_num()
+    Hardware::cpu_cores()
 }
-
 pub fn get_mem_total() -> u64 {
-    Hardware.get_mem_info().0
+    Hardware::memory_info().0
 }
-
 pub fn get_cpu_cache() -> (u64, u64, u64) {
-    Hardware.get_cpu_cache_total()
+    Hardware::cpu_cache()
 }
-
 pub fn get_disk_size() -> u64 {
-    Hardware.get_disk_info().0
+    Hardware::disk_info().0
 }
-
 pub fn get_host_name() -> String {
-    Hardware.get_host_name()
+    Hardware::hostname()
 }
-
 pub fn get_mac_address() -> String {
-    Hardware.get_mac_address()
+    Hardware::mac_address()
 }
-
 pub fn get_local_ip_address() -> String {
-    Hardware.get_local_ip_address()
+    Hardware::local_ip()
 }
-
 pub fn get_external_ip_address() -> String {
-    get_external_ip_address_async()
+    Hardware::external_ip()
 }
-
-fn get_external_ip_address_async() -> String {
-    let http_client = reqwest::blocking::Client::new();
-    let url = "https://api.ipify.org";
-    let text = http_client.get(url).send().unwrap().text();
-    text.unwrap()
-}
-
-pub fn _get_mem_free() -> u64 {
-    Hardware.get_mem_info().1
-}
-
 pub fn get_disk_free() -> u64 {
-    Hardware.get_disk_info().1
+    Hardware::disk_info().1
 }
-
 pub fn get_device_serial() -> String {
-    Hardware.get_device_serial()
+    Hardware::device_serial()
 }
-
 pub fn get_battery_info() -> (Ratio, Energy) {
-    Hardware.get_battery_info()
+    Hardware::battery_info()
+}
+pub fn has_battery() -> bool {
+    Hardware::has_battery()
+}
+pub fn _get_mem_free() -> u64 {
+    Hardware::memory_info().1
 }
