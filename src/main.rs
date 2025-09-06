@@ -1,3 +1,7 @@
+mod drivers {
+    pub mod hardware;
+}
+
 mod modules {
     pub mod initial;
 }
@@ -5,4 +9,4 @@ mod modules {
 fn main() {
     modules::initial::loader::load();
     // other code...
-}   
+}

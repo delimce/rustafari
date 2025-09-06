@@ -1,4 +1,4 @@
-#[path = "../../drivers/hardware.rs"]
+#[path = "../../drivers/hardware/mod.rs"]
 mod hardware;
 
 #[path = "../shared/formats.rs"]

@@ -53,3 +53,6 @@ cargo run
 - **Hardware**: CPU model/cores/cache, RAM, disk space, hostname, battery life
 - **Software**: OS type, name, kernel version, architecture
 - **Network**: MAC address, local IP, external IP, device serial number
+
+## structure reference:
+I tried separated hardware implementations for Linux and Mac, you can find them in the `src/drivers/hardware` directory. for more information please go to the [@README.md](@file:rustafari/src/drivers/hardware/README.md).
