@@ -3,6 +3,7 @@ use battery::{
     Manager,
 };
 use local_ip_address::local_ip;
+use std::process::Command;
 use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 const UNKNOWN_VALUE: &str = "Unknown";
@@ -168,9 +169,7 @@ impl Hardware {
 
     #[cfg(target_os = "macos")]
     fn get_manufactured_date_macos() -> Option<String> {
-        // Try to get system info from system_profiler for Serial Number which sometimes contains date info
-
-        use std::process::Command;
+        // Get serial number from system_profiler and decode manufacturing date
         if let Ok(output) = Command::new("system_profiler")
             .args(&["SPHardwareDataType"])
             .output()
@@ -180,35 +179,116 @@ impl Hardware {
                 if line.trim().starts_with("Serial Number (system):") {
                     if let Some(serial) = line.split(':').nth(1) {
                         let serial = serial.trim();
-                        // Apple serials sometimes encode manufacturing info
                         if !serial.is_empty() && serial != "Not Available" {
-                            return Some(format!("Serial: {}", serial));
+                            return Self::decode_modern_apple_serial_date(serial);
                         }
                     }
                 }
             }
         }
 
-        // Try to get system version/build date
-        if let Ok(output) = Command::new("sw_vers").args(&["-buildVersion"]).output() {
-            let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !result.is_empty() {
-                return Some(format!("Build: {}", result));
-            }
-        }
-
-        // Fallback to system uptime info
-        if let Ok(output) = Command::new("sysctl")
-            .args(&["-n", "kern.boottime"])
+        // Fallback: Get serial from ioreg
+        if let Ok(output) = Command::new("ioreg")
+            .args(&["-c", "IOPlatformExpertDevice", "-d", "2"])
             .output()
         {
-            let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !result.is_empty() {
-                return Some("System info available".to_string());
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            for line in output_str.lines() {
+                if line.contains("IOPlatformSerialNumber") {
+                    if let Some(start) = line.find("\"") {
+                        if let Some(end) = line[start + 1..].find("\"") {
+                            let serial = &line[start + 1..start + 1 + end];
+                            if !serial.is_empty() {
+                                return Self::decode_modern_apple_serial_date(serial);
+                            }
+                        }
+                    }
+                }
             }
         }
 
         None
+    }
+
+    #[cfg(target_os = "macos")]
+    fn decode_modern_apple_serial_date(serial: &str) -> Option<String> {
+        if serial.len() != 10 && serial.len() != 12 {
+            return None;
+        }
+
+        // Modern Apple serials: C07F10GTQ6NY
+        // Position 3 (F) = year, Position 4 (1) = week in half-year
+        // Correct positions for modern format
+
+        let year_char = serial.chars().nth(3)?;
+        let week_char = serial.chars().nth(4)?;
+
+        // Apple's year encoding (position 3): cycles every few years
+        let (base_year, half) = match year_char {
+            'C' => (2010, 1),
+            'D' => (2010, 2),
+            'F' => (2011, 1), // F appears in 2011 and 2020 (cycles)
+            'G' => (2011, 2),
+            'H' => (2012, 1),
+            'J' => (2012, 2),
+            'K' => (2013, 1),
+            'L' => (2013, 2),
+            'M' => (2014, 1),
+            'N' => (2014, 2),
+            'P' => (2015, 1),
+            'Q' => (2015, 2),
+            'R' => (2016, 1),
+            'S' => (2016, 2),
+            'T' => (2017, 1),
+            'V' => (2017, 2),
+            'W' => (2018, 1),
+            'X' => (2018, 2),
+            'Y' => (2019, 1),
+            'Z' => (2019, 2),
+            _ => return None,
+        };
+
+        // Check if this could be a newer cycle (after 2019, F would be 2020)
+        let year = if year_char == 'F' && serial.starts_with("C07") {
+            // Based on M1 Mac mini release (late 2020), this F is likely 2020
+            2020
+        } else {
+            base_year
+        };
+
+        // Decode week from position 4
+        let week_num = match week_char {
+            '1'..='9' => week_char as u32 - '0' as u32,
+            'A'..='Z' => 10 + (week_char as u32 - 'A' as u32),
+            _ => return None,
+        };
+
+        // Calculate approximate month
+        let month = if half == 1 {
+            // First half of year
+            match week_num {
+                1..=4 => "Jan",
+                5..=8 => "Feb",
+                9..=13 => "Mar",
+                14..=17 => "Apr",
+                18..=22 => "May",
+                23..=26 => "Jun",
+                _ => "H1",
+            }
+        } else {
+            // Second half of year
+            match week_num {
+                1..=4 => "Jul",
+                5..=8 => "Aug",
+                9..=13 => "Sep",
+                14..=17 => "Oct",
+                18..=22 => "Nov",
+                23..=26 => "Dec",
+                _ => "H2",
+            }
+        };
+
+        Some(format!("{} {}", month, year))
     }
 
     #[cfg(target_os = "linux")]
@@ -240,8 +320,6 @@ impl Hardware {
     #[cfg(target_os = "macos")]
     fn get_system_product_name_macos() -> Option<String> {
         // Try to get model from system_profiler
-
-        use std::process::Command;
         if let Ok(output) = Command::new("system_profiler")
             .args(&["SPHardwareDataType"])
             .output()
