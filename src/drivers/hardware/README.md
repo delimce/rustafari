@@ -9,9 +9,10 @@ The hardware module is organized into several components:
 ### Core Components
 
 - **`traits.rs`** - Defines the `HardwareProvider` trait that serves as a common interface for all hardware operations
+- **`base.rs`** - Base hardware implementation containing common functionality shared across platforms
 - **`mod.rs`** - Main module file that selects the appropriate platform implementation and provides the public API
-- **`macos.rs`** - macOS-specific hardware implementation
-- **`linux.rs`** - Linux-specific hardware implementation
+- **`macos.rs`** - macOS-specific hardware implementation (extends base functionality)
+- **`linux.rs`** - Linux-specific hardware implementation (extends base functionality)
 
 ### Structure
 
@@ -20,6 +21,7 @@ src/drivers/hardware/
 ├── README.md           # This documentation
 ├── mod.rs             # Main module with platform selection
 ├── traits.rs          # Common interface definitions
+├── base.rs            # Base implementation with common functionality
 ├── macos.rs           # macOS-specific implementation
 └── linux.rs           # Linux-specific implementation
 ```
@@ -33,15 +35,29 @@ The module uses Rust's conditional compilation attributes (`#[cfg(target_os = ".
 - **macOS**: Uses `MacOSHardware` struct
 - **Linux**: Uses `LinuxHardware` struct
 
-### Trait-Based Architecture
+### Trait-Based Architecture with Base Class Pattern
 
-All platform implementations implement the `HardwareProvider` trait, ensuring consistent APIs across platforms while allowing for platform-specific optimizations.
+The module uses a combination of inheritance-like patterns and trait-based architecture:
 
-### Separation of Concerns
+- **`BaseHardware`** - Contains common implementations for hardware operations that work the same across platforms
+- **`HardwareProvider`** - Main trait that defines the public API for hardware information
+- **`PlatformSpecificHardware`** - Trait for platform-specific operations that differ between operating systems
 
-Each platform implementation is in its own file, making the codebase more maintainable:
+All platform implementations extend the base functionality and implement platform-specific methods, ensuring consistent APIs while eliminating code duplication.
 
-- **macOS Implementation**: Uses system-specific tools like `system_profiler`, `ioreg`, and `sysctl`
+### Code Organization and DRY Principle
+
+The module follows the DRY (Don't Repeat Yourself) principle by extracting common functionality:
+
+- **Base Implementation**: Contains shared methods like `cpu_model()`, `memory_info()`, `battery_info()`, etc.
+- **Platform-Specific Methods**: Only the methods that differ between platforms are implemented separately:
+  - `device_serial()` - Different detection methods per platform
+  - `manufactured_date()` - Different date parsing logic
+  - `system_manufacturer()` - Linux reads from DMI, macOS returns "Apple Inc."
+  - `system_product_name()` - Different system information sources
+
+**Platform-specific tools:**
+- **macOS Implementation**: Uses `system_profiler`, `ioreg`, and `sysctl`
 - **Linux Implementation**: Uses DMI files (`/sys/class/dmi/id/`), `/proc/` filesystem, and `dmidecode`
 
 ## Supported Hardware Information
@@ -113,13 +129,41 @@ The module uses graceful error handling with fallbacks:
 To add support for a new platform:
 
 1. Create a new file (e.g., `windows.rs`)
-2. Implement the `HardwareProvider` trait
-3. Add conditional compilation in `mod.rs`
-4. Update the platform selection logic
+2. Implement both `HardwareProvider` and `PlatformSpecificHardware` traits
+3. Use `BaseHardware` methods for common functionality
+4. Add conditional compilation in `mod.rs`
+5. Update the platform selection logic
 
 Example for Windows support:
 
 ```rust
+// In windows.rs
+use super::base::{BaseHardware, PlatformSpecificHardware};
+use super::traits::{constants::UNKNOWN_VALUE, HardwareProvider};
+
+pub struct WindowsHardware;
+
+impl HardwareProvider for WindowsHardware {
+    fn cpu_model() -> String {
+        BaseHardware::cpu_model()  // Use base implementation
+    }
+    
+    fn device_serial() -> String {
+        <Self as PlatformSpecificHardware>::device_serial()  // Use platform-specific
+    }
+    
+    // ... other methods
+}
+
+impl PlatformSpecificHardware for WindowsHardware {
+    fn device_serial() -> String {
+        // Windows-specific serial number detection
+        // Implementation here...
+    }
+    
+    // ... other platform-specific methods
+}
+
 // In mod.rs
 #[cfg(target_os = "windows")]
 pub mod windows;

@@ -1,50 +1,74 @@
+use super::base::{BaseHardware, PlatformSpecificHardware};
 use super::traits::{constants::UNKNOWN_VALUE, HardwareProvider};
-use battery::{
-    units::{energy::watt_hour, ratio::percent, Energy, Ratio},
-    Manager,
-};
-use local_ip_address::local_ip;
+use battery::units::{Energy, Ratio};
 use std::fs;
 use std::process::Command;
-use sysinfo::{CpuExt, CpuRefreshKind, DiskExt, RefreshKind, System, SystemExt};
 
 pub struct LinuxHardware;
 
 impl HardwareProvider for LinuxHardware {
     fn cpu_model() -> String {
-        Self::get_system().cpus()[0].brand().to_string()
+        BaseHardware::cpu_model()
     }
 
     fn cpu_cores() -> u32 {
-        sys_info::cpu_num().unwrap_or(0)
+        BaseHardware::cpu_cores()
     }
 
     fn hostname() -> String {
-        sys_info::hostname().unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
+        BaseHardware::hostname()
     }
 
     fn mac_address() -> String {
-        mac_address::get_mac_address()
-            .ok()
-            .flatten()
-            .map(|addr| addr.to_string())
-            .unwrap_or_else(|| UNKNOWN_VALUE.to_string())
+        BaseHardware::mac_address()
     }
 
     fn cpu_cache() -> (u64, u64, u64) {
-        (
-            cache_size::l1_cache_size().unwrap_or(0) as u64,
-            cache_size::l2_cache_size().unwrap_or(0) as u64,
-            cache_size::l3_cache_size().unwrap_or(0) as u64,
-        )
+        BaseHardware::cpu_cache()
     }
 
     fn local_ip() -> String {
-        local_ip()
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
+        BaseHardware::local_ip()
     }
 
+    fn device_serial() -> String {
+        <Self as PlatformSpecificHardware>::device_serial()
+    }
+
+    fn has_battery() -> bool {
+        BaseHardware::has_battery()
+    }
+
+    fn memory_info() -> (u64, u64) {
+        BaseHardware::memory_info()
+    }
+
+    fn disk_info() -> (u64, u64) {
+        BaseHardware::disk_info()
+    }
+
+    fn battery_info() -> (Ratio, Energy) {
+        BaseHardware::battery_info()
+    }
+
+    fn external_ip() -> String {
+        BaseHardware::external_ip()
+    }
+
+    fn manufactured_date() -> String {
+        <Self as PlatformSpecificHardware>::manufactured_date()
+    }
+
+    fn system_manufacturer() -> String {
+        <Self as PlatformSpecificHardware>::system_manufacturer()
+    }
+
+    fn system_product_name() -> String {
+        <Self as PlatformSpecificHardware>::system_product_name()
+    }
+}
+
+impl PlatformSpecificHardware for LinuxHardware {
     fn device_serial() -> String {
         // Try various methods to get device serial on Linux
         if let Some(serial) = Self::get_serial_from_dmi() {
@@ -66,55 +90,6 @@ impl HardwareProvider for LinuxHardware {
         }
     }
 
-    fn has_battery() -> bool {
-        Self::get_battery_manager()
-            .map(|manager| {
-                manager
-                    .batteries()
-                    .map(|mut batteries| batteries.any(|b| b.is_ok()))
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false)
-    }
-
-    fn memory_info() -> (u64, u64) {
-        sys_info::mem_info()
-            .map(|mem| (mem.total, mem.free))
-            .unwrap_or((0, 0))
-    }
-
-    fn disk_info() -> (u64, u64) {
-        let mut system = System::new_all();
-        system.refresh_all();
-
-        system
-            .disks()
-            .first()
-            .map(|disk| (disk.total_space(), disk.available_space()))
-            .unwrap_or((0, 0))
-    }
-
-    fn battery_info() -> (Ratio, Energy) {
-        if let Ok(manager) = Self::get_battery_manager() {
-            if let Ok(batteries) = manager.batteries() {
-                for battery in batteries {
-                    if let Ok(battery) = battery {
-                        return (battery.state_of_health(), battery.energy_full());
-                    }
-                }
-            }
-        }
-        (Ratio::new::<percent>(0.0), Energy::new::<watt_hour>(0.0))
-    }
-
-    fn external_ip() -> String {
-        reqwest::blocking::Client::new()
-            .get("https://api.ipify.org")
-            .send()
-            .and_then(|response| response.text())
-            .unwrap_or_else(|_| UNKNOWN_VALUE.to_string())
-    }
-
     fn manufactured_date() -> String {
         Self::get_manufactured_date().unwrap_or_else(|| UNKNOWN_VALUE.to_string())
     }
@@ -129,16 +104,6 @@ impl HardwareProvider for LinuxHardware {
 }
 
 impl LinuxHardware {
-    /// Create a system instance with CPU information
-    fn get_system() -> System {
-        System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()))
-    }
-
-    /// Create a battery manager instance
-    fn get_battery_manager() -> Result<Manager, battery::Error> {
-        Manager::new()
-    }
-
     /// Get device serial number from DMI information
     fn get_serial_from_dmi() -> Option<String> {
         let dmi_paths = [

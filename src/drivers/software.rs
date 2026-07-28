@@ -16,7 +16,7 @@ impl SoftwareInfo for Software {
     }
 
     fn get_os_version(&self) -> String {
-        sys_info::os_release().unwrap()
+        sys_info::os_release().unwrap_or_else(|_| "Unknown".to_string())
     }
 
     fn get_os_name(&self) -> String {
