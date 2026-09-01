@@ -1,5 +1,6 @@
 #[path = "../../drivers/hardware/mod.rs"]
 mod hardware;
+use colored::*;
 
 #[path = "../shared/formats.rs"]
 mod formats;
@@ -22,7 +23,10 @@ pub fn show_hdw_info() {
     println!("Total disc size: {disk_total_gb}");
     println!("Total disc available: {disk_free_gb}");
     println!("Hostname: {}", hardware::get_host_name());
-    println!("Manufacturer: {}", hardware::get_system_manufacturer());
+    println!(
+        "Manufacturer: {}",
+        hardware::get_system_manufacturer().yellow()
+    );
     println!("Product Name: {}", hardware::get_system_product_name());
     println!("Manufactured Date: {}", hardware::get_manufactured_date());
 
@@ -34,7 +38,7 @@ pub fn show_network_info() {
     println!("Local IP address: {}", hardware::get_local_ip_address());
     println!(
         "External IP address: {}",
-        hardware::get_external_ip_address()
+        hardware::get_external_ip_address().yellow()
     );
     println!("Device serial number: {}", hardware::get_device_serial());
 }
